@@ -46,12 +46,12 @@ export default function HomePage() {
       <nav className="bg-white py-4 shadow-md">
         <div className="container mx-auto px-4">
           <div className="flex justify-center space-x-8">
-            <NavItem title="COLORIAGES" icon="/icons/test.png" active />
-            <NavItem title="DESSINS POUR LES ENFANTS" icon="/icons/test.png" />
-            <NavItem title="ACTIVITÉS MANUELLES" icon="/icons/test.png" />
-            <NavItem title="JEUX EN LIGNE GRATUITS" icon="/icons/test.png" />
-            <NavItem title="LECTURE" icon="/icons/test.png" />
-            <NavItem title="VIDÉOS ET TUTORIELS" icon="/icons/test.png" />
+            <NavItem title="COLORIAGES" icon="/icons/coloration.png" active />
+            <NavItem title="DESSINS POUR LES ENFANTS" icon="/icons/dessins.png" />
+            <NavItem title="ACTIVITÉS MANUELLES" icon="/icons/activity.png" />
+            <NavItem title="JEUX EN LIGNE GRATUITS" icon="/icons/jeux.png" />
+            <NavItem title="LECTURE" icon="/icons/lecture.png" />
+            <NavItem title="VIDÉOS ET TUTORIELS" icon="/icons/video.png" />
           </div>
         </div>
       </nav>

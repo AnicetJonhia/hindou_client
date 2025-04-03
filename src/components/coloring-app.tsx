@@ -413,7 +413,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
         {/* Right Toolbar */}
         <div className="flex flex-col items-center gap-4 p-4 w-24">
           {/* Color Palette */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-6">
             {colors.map((color) => (
               <ColorButton
                 key={color}
@@ -429,29 +429,21 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
             {/* Small Brush */}
             <ToolButton
               onClick={() => setActiveTool("brush-small")}
-              icon={
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-3 h-3 rounded-full border-2 border-white" style={{ background: activeColor }}></div>
-                </div>
-              }
+              icon={<img src="/icons/pinceau_3.png" alt="Pinceau" className="w-6 h-6" />}
               color={activeTool === "brush-small" ? "bg-orange-500" : "bg-blue-400"}
             />
 
             {/* Medium Brush */}
             <ToolButton
               onClick={() => setActiveTool("brush-medium")}
-              icon={
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <div className="w-5 h-5 rounded-full border-2 border-white" style={{ background: activeColor }}></div>
-                </div>
-              }
+              icon={<img src="/icons/pinceau_2.png" alt="Pinceau" className="w-8 h-8" />}
               color={activeTool === "brush-medium" ? "bg-orange-500" : "bg-blue-400"}
             />
 
             {/* Fill Tool */}
             <ToolButton
               onClick={() => setActiveTool("fill")}
-              icon={<PaintBucket className="w-6 h-6 text-white" />}
+              icon={<img src="/icons/pinceau_1.png" alt="Pinceau" className="w-12 h-12" />}
               color={activeTool === "fill" ? "bg-orange-500" : "bg-green-400"}
             />
 
@@ -459,18 +451,18 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
             <ToolButton
               onClick={() => setActiveTool("smart-eraser")}
               icon={
-                <div className="relative w-6 h-6 flex items-center justify-center">
-                  <PaintBucket className="w-5 h-5 text-white" />
-                  <div className="absolute bottom-0 right-0 w-4 h-4 bg-gray-400 rounded-full"></div>
-                </div>
-              }
+                  <img src="/icons/gomme_1.png" alt="Gomme" className="w-12 h-12" />
+                }
+
               color={activeTool === "smart-eraser" ? "bg-orange-500" : "bg-green-400"}
             />
 
             {/* Regular Eraser */}
             <ToolButton
               onClick={() => setActiveTool("eraser")}
-              icon={<Eraser className="w-6 h-6 text-white" />}
+              icon={
+                  <img src="/icons/gomme_2.png" alt="Gomme" className="w-6 h-6" />
+                }
               color={activeTool === "eraser" ? "bg-orange-500" : "bg-green-400"}
             />
           </div>
@@ -514,10 +506,23 @@ function ColorButton({ color, isActive, onClick }: ColorButtonProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-16 h-8 rounded-full flex items-center justify-center ${isActive ? "ring-4 ring-white" : ""}`}
-      style={{ background: "white" }}
+      className={`w-16 h-4 flex items-center justify-start p-1 ${isActive ? "w-18 animate__animated animate__pulse animate__infinite" : ""}`}
+
     >
-      <div className="w-12 h-6 rounded-full" style={{ background: color }} />
+
+      <span
+  style={{
+    display: "inline-block",
+    width: 0,
+    height: 0,
+    borderTop: "8px solid transparent",
+    borderBottom: "8px solid transparent",
+    borderRight: `16px solid ${color}`,
+  }}
+/>
+
+      <span className={"w-full h-4 bg-white"}></span>
+
     </button>
-  )
+  );
 }
