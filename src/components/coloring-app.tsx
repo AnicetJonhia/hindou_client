@@ -58,14 +58,14 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
 
 
   useEffect(() => {
-    const canvas = backgroundCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = imagePath; // L'image à colorier
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const canvasBg = backgroundCanvasRef.current;
+    if (!canvasBg) return;
+    const ctxBg = canvasBg.getContext("2d");
+    const imgBg = new Image();
+    imgBg.crossOrigin = "anonymous";
+    imgBg.src = imagePath; // L'image à colorier
+    imgBg.onload = () => {
+      ctxBg.drawImage(imgBg, 0, 0, canvasBg.width, canvasBg.height);
     };
     }, [imagePath]);
 
@@ -344,21 +344,25 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
 
       >
         {/* Left Toolbar */}
-        <div className="flex flex-col items-center gap-4 p-4 w-20">
+        <div className="flex flex-col items-center  gap-4 p-4 w-20">
           {onBack && (
             <ToolButton onClick={onBack} icon={<ArrowLeft className="w-6 h-6 text-white" />} color="bg-blue-700" />
           )}
-          <ToolButton onClick={() => {}} icon={<Maximize className="w-6 h-6 text-white" />} color="bg-blue-500" />
-          <ToolButton onClick={() => {}} icon={<Printer className="w-6 h-6 text-white" />} color="bg-blue-500" />
-          <ToolButton onClick={resetCanvas} icon={<Trash2 className="w-6 h-6 text-white" />} color="bg-blue-500" />
-          <ToolButton onClick={downloadImage} icon={<Download className="w-6 h-6 text-white" />} color="bg-green-500" />
-          <div className="mt-auto">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-md flex items-center justify-center">
-              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-green-500 rounded-full"></div>
-              </div>
-            </div>
+
+          {/* Zoom Controls */}
+          <div className="mt-4 flex flex-col gap-2">
+            <ToolButton onClick={() => {}} icon={<Maximize className="w-6 h-6 text-white" />} color="bg-blue-500" />
+            <ToolButton onClick={zoomIn} icon={<ZoomIn className="w-6 h-6 text-white" />} color="bg-blue-500" />
+            <ToolButton onClick={zoomOut} icon={<ZoomOut className="w-6 h-6 text-white" />} color="bg-blue-500" />
           </div>
+          <div className= {"flex flex-col mt-4 gap-4"} >
+
+            <ToolButton onClick={() => {}} icon={<Printer className="w-6 h-6 text-white" />} color="bg-blue-500" />
+            <ToolButton onClick={resetCanvas} icon={<Trash2 className="w-6 h-6 text-white" />} color="bg-blue-500" />
+            <ToolButton onClick={downloadImage} icon={<Download className="w-6 h-6 text-white" />} color="bg-green-500" />
+          </div>
+
+
         </div>
 
         {/* Main Canvas Area */}
@@ -457,7 +461,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
               icon={
                 <div className="relative w-6 h-6 flex items-center justify-center">
                   <PaintBucket className="w-5 h-5 text-white" />
-                  <div className="absolute bottom-0 right-0 w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <div className="absolute bottom-0 right-0 w-4 h-4 bg-gray-400 rounded-full"></div>
                 </div>
               }
               color={activeTool === "smart-eraser" ? "bg-orange-500" : "bg-green-400"}
@@ -471,11 +475,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
             />
           </div>
 
-          {/* Zoom Controls */}
-          <div className="mt-4 flex flex-col gap-2">
-            <ToolButton onClick={zoomIn} icon={<ZoomIn className="w-6 h-6 text-white" />} color="bg-blue-500" />
-            <ToolButton onClick={zoomOut} icon={<ZoomOut className="w-6 h-6 text-white" />} color="bg-blue-500" />
-          </div>
+
 
           {/* Undo Button */}
           <div className="mt-auto">
