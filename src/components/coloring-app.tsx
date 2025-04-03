@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import {
   Maximize,
@@ -23,9 +22,9 @@ interface ColoringAppProps {
 
 export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringAppProps) {
   const [activeColor, setActiveColor] = useState("#ff0000")
-  const [activeTool, setActiveTool] = useState<"brush-small" | "brush-medium" | "fill" | "smart-eraser" | "eraser">(
-    "brush-medium",
-  )
+  const [activeTool, setActiveTool] = useState<
+    "brush-small" | "brush-medium" | "fill" | "smart-eraser" | "eraser"
+  >("brush-medium")
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D | null>(null)
@@ -55,7 +54,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     "#ffffff", // white
   ]
 
-  // Initialize canvas
+  // Initialize canvas (fond transparent)
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -64,30 +63,26 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     if (!ctx) return
 
     setCanvasContext(ctx)
-
-    // Set canvas size
     canvas.width = 800
     canvas.height = 600
 
-    // Fill with gray background
-    ctx.fillStyle = "#888888"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    // On ne remplit pas le canvas : le fond restera transparent
 
-    // Load the coloring image
+    // Chargement de l'image de coloriage
     const img = new Image()
     imageRef.current = img
     img.crossOrigin = "anonymous"
     img.src = imagePath
     img.onload = () => {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      // Save initial state
+      // Sauvegarde de l'état initial
       const initialState = ctx.getImageData(0, 0, canvas.width, canvas.height)
       setCanvasHistory([initialState])
       setHistoryIndex(0)
     }
   }, [imagePath])
 
-  // Drawing functions
+  // Démarrage du dessin / effacement
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasContext || !canvasRef.current) return
 
@@ -102,34 +97,36 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     if (activeTool === "fill") {
       floodFill(Math.floor(x), Math.floor(y), activeColor)
     } else if (activeTool === "smart-eraser") {
-      floodFill(Math.floor(x), Math.floor(y), "#ffffff") // Use background color
+      // Smart‑eraser effectue un flood‑erase pour rendre transparent toute la zone
+      floodErase(Math.floor(x), Math.floor(y))
     } else {
-      // For brush tools, draw a circle at the starting point
+      // Pour les outils de pinceau (brush ou eraser), on dessine dès le départ
       drawCircle(x, y)
     }
   }
 
+  // Dessin d'un cercle selon l'outil
   const drawCircle = (x: number, y: number) => {
     if (!canvasContext) return
 
     const brushSize = brushSizes[activeTool]
-    if (activeTool === "eraser" || activeTool === "smart-eraser") {
-    // On efface sans appliquer de couleur blanche
-        canvasContext.globalCompositeOperation = "destination-out";
-      } else {
-        // Mode dessin classique
-        canvasContext.globalCompositeOperation = "source-over";
-        canvasContext.fillStyle = activeColor;
-
-      }
-         canvasContext.beginPath()
-        canvasContext.arc(x, y, brushSize / 2, 0, Math.PI * 2)
-        canvasContext.fill()
-
+    if (activeTool === "eraser") {
+      // Gomme classique : mode "destination-out" pour rendre le trait transparent
+      canvasContext.globalCompositeOperation = "destination-out"
+    } else {
+      // Mode dessin classique
+      canvasContext.globalCompositeOperation = "source-over"
+      canvasContext.fillStyle = activeColor
+    }
+    canvasContext.beginPath()
+    canvasContext.arc(x, y, brushSize / 2, 0, Math.PI * 2)
+    canvasContext.fill()
   }
 
+  // Fonction de dessin continu (pour le pinceau)
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !canvasContext || !canvasRef.current || !lastPos.current) return
+    // Pour smart‑eraser, on ne gère pas le drag (action unique sur clic)
     if (activeTool === "fill" || activeTool === "smart-eraser") return
 
     const canvas = canvasRef.current
@@ -137,26 +134,20 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     const x = (e.clientX - rect.left) / zoom
     const y = (e.clientY - rect.top) / zoom
 
-    // Calculate distance between last position and current position
     const dx = x - lastPos.current.x
     const dy = y - lastPos.current.y
     const distance = Math.sqrt(dx * dx + dy * dy)
-
     const brushSize = brushSizes[activeTool]
     const radius = brushSize / 2
 
-    // Draw circles along the path for smooth drawing
     if (distance >= radius / 2) {
-      // Calculate how many circles we need to draw
       const steps = Math.floor(distance / (radius / 2))
-
       for (let i = 0; i <= steps; i++) {
         const t = i / steps
         const ix = lastPos.current.x + dx * t
         const iy = lastPos.current.y + dy * t
         drawCircle(ix, iy)
       }
-
       lastPos.current = { x, y }
     } else {
       drawCircle(x, y)
@@ -169,71 +160,91 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     setIsDrawing(false)
     lastPos.current = null
 
-    // Save state for undo
+    // Sauvegarder l'état actuel pour l'undo
     const canvas = canvasRef.current
     const newState = canvasContext.getImageData(0, 0, canvas.width, canvas.height)
-
-    // Remove any redo states
     const newHistory = canvasHistory.slice(0, historyIndex + 1)
     setCanvasHistory([...newHistory, newState])
     setHistoryIndex(newHistory.length)
   }
 
-  // Flood fill algorithm
+  // Flood fill classique
   const floodFill = (x: number, y: number, fillColor: string) => {
     if (!canvasContext || !canvasRef.current) return
 
     const canvas = canvasRef.current
     const ctx = canvasContext
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    const data = imageData.data
-
-    // Convert hex color to RGBA
     const fillColorRGB = hexToRgb(fillColor)
     if (!fillColorRGB) return
 
-    // Get the color of the clicked pixel
     const targetColor = getPixelColor(imageData, x, y)
-
-    // Don't fill if the colors are the same
     if (colorsMatch(targetColor, [fillColorRGB.r, fillColorRGB.g, fillColorRGB.b, 255])) return
 
-    // Queue for flood fill
     const queue: [number, number][] = []
     queue.push([x, y])
 
     while (queue.length > 0) {
       const [currentX, currentY] = queue.shift()!
+      if (currentX < 0 || currentY < 0 || currentX >= canvas.width || currentY >= canvas.height) continue
 
-      // Check if the pixel is within the canvas
-      if (currentX < 0 || currentY < 0 || currentX >= canvas.width || currentY >= canvas.height) {
-        continue
-      }
-
-      // Get the color of the current pixel
       const currentColor = getPixelColor(imageData, currentX, currentY)
-
-      // If the color matches the target color, fill it
       if (colorsMatch(currentColor, targetColor)) {
-        // Set the pixel color
-        setPixelColor(imageData, currentX, currentY, [fillColorRGB.r, fillColorRGB.g, fillColorRGB.b, 255])
-
-        // Add adjacent pixels to the queue
+        setPixelColor(imageData, currentX, currentY, [
+          fillColorRGB.r,
+          fillColorRGB.g,
+          fillColorRGB.b,
+          255,
+        ])
         queue.push([currentX + 1, currentY])
         queue.push([currentX - 1, currentY])
         queue.push([currentX, currentY + 1])
         queue.push([currentX, currentY - 1])
       }
     }
-
-    // Update the canvas
     ctx.putImageData(imageData, 0, 0)
   }
 
-  // Helper functions for flood fill
+  // Fonction de flood‑erase pour smart‑eraser : rend transparent tous les pixels d'une zone contiguë
+  const floodErase = (x: number, y: number) => {
+    if (!canvasContext || !canvasRef.current) return
+
+    const canvas = canvasRef.current
+    const ctx = canvasContext
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const targetColor = getPixelColor(imageData, x, y)
+    // Si le pixel est déjà transparent, rien à faire
+    if (targetColor[3] === 0) return
+
+    const queue: [number, number][] = []
+    queue.push([x, y])
+
+    while (queue.length > 0) {
+      const [currentX, currentY] = queue.shift()!
+      if (currentX < 0 || currentY < 0 || currentX >= canvas.width || currentY >= canvas.height) continue
+
+      const currentColor = getPixelColor(imageData, currentX, currentY)
+      if (colorsMatch(currentColor, targetColor)) {
+        // Rendre le pixel transparent en mettant l'alpha à 0
+        setPixelColor(imageData, currentX, currentY, [0, 0, 0, 0])
+        queue.push([currentX + 1, currentY])
+        queue.push([currentX - 1, currentY])
+        queue.push([currentX, currentY + 1])
+        queue.push([currentX, currentY - 1])
+      }
+    }
+    ctx.putImageData(imageData, 0, 0)
+  }
+
+  // Helpers pour manipuler les pixels
   const getPixelColor = (imageData: ImageData, x: number, y: number): [number, number, number, number] => {
     const index = (y * imageData.width + x) * 4
-    return [imageData.data[index], imageData.data[index + 1], imageData.data[index + 2], imageData.data[index + 3]]
+    return [
+      imageData.data[index],
+      imageData.data[index + 1],
+      imageData.data[index + 2],
+      imageData.data[index + 3],
+    ]
   }
 
   const setPixelColor = (imageData: ImageData, x: number, y: number, color: [number, number, number, number]) => {
@@ -244,8 +255,11 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     imageData.data[index + 3] = color[3]
   }
 
-  const colorsMatch = (color1: [number, number, number, number], color2: [number, number, number, number]): boolean => {
-    const threshold = 10 // Allow some difference for anti-aliasing
+  const colorsMatch = (
+    color1: [number, number, number, number],
+    color2: [number, number, number, number]
+  ): boolean => {
+    const threshold = 10 // Tolérance pour l'anti-aliasing
     return (
       Math.abs(color1[0] - color2[0]) < threshold &&
       Math.abs(color1[1] - color2[1]) < threshold &&
@@ -273,22 +287,20 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     }
   }
 
-  // Reset canvas
+  // Reset canvas : ici on efface pour obtenir un fond transparent
   const resetCanvas = () => {
     if (!canvasContext || !canvasRef.current || !imageRef.current) return
 
     const canvas = canvasRef.current
-    canvasContext.fillStyle = "#888888"
-    canvasContext.fillRect(0, 0, canvas.width, canvas.height)
+    canvasContext.clearRect(0, 0, canvas.width, canvas.height)
     canvasContext.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height)
 
-    // Save new state
     const newState = canvasContext.getImageData(0, 0, canvas.width, canvas.height)
     setCanvasHistory([newState])
     setHistoryIndex(0)
   }
 
-  // Download canvas as image
+  // Télécharger l'image
   const downloadImage = () => {
     if (!canvasRef.current) return
 
@@ -478,4 +490,3 @@ function ColorButton({ color, isActive, onClick }: ColorButtonProps) {
     </button>
   )
 }
-
