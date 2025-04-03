@@ -61,6 +61,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     const canvasBg = backgroundCanvasRef.current;
     if (!canvasBg) return;
     const ctxBg = canvasBg.getContext("2d");
+     if (!ctxBg) return;
     const imgBg = new Image();
     imgBg.crossOrigin = "anonymous";
     imgBg.src = imagePath; // L'image à colorier
