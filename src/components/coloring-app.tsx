@@ -3,14 +3,29 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { Maximize, Printer, Trash2, Download, RotateCcw, ZoomIn, ZoomOut, PaintBucket , ArrowLeft} from "lucide-react"
+import {
+  Maximize,
+  Printer,
+  Trash2,
+  Download,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+  PaintBucket,
+  ArrowLeft,
+  Eraser,
+} from "lucide-react"
 
-import a_img from "@/assets/images/a.png"
+interface ColoringAppProps {
+  imagePath?: string
+  onBack?: () => void
+}
 
-export default function ColoringApp() {
+export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringAppProps) {
   const [activeColor, setActiveColor] = useState("#ff0000")
-  const [activeTool, setActiveTool] = useState<"brush" | "fill" | "eraser">("brush")
-  const [brushSize, setBrushSize] = useState(10)
+  const [activeTool, setActiveTool] = useState<"brush-small" | "brush-medium" | "fill" | "smart-eraser" | "eraser">(
+    "brush-medium",
+  )
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D | null>(null)
@@ -18,6 +33,16 @@ export default function ColoringApp() {
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [zoom, setZoom] = useState(1)
   const imageRef = useRef<HTMLImageElement | null>(null)
+  const lastPos = useRef<{ x: number; y: number } | null>(null)
+
+  // Brush sizes
+  const brushSizes = {
+    "brush-small": 5,
+    "brush-medium": 15,
+    "smart-eraser": 15,
+    eraser: 15,
+    fill: 0, // Not applicable for fill tool
+  }
 
   // Colors palette
   const colors = [
@@ -52,7 +77,7 @@ export default function ColoringApp() {
     const img = new Image()
     imageRef.current = img
     img.crossOrigin = "anonymous"
-    img.src = a_img.src
+    img.src = imagePath
     img.onload = () => {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
       // Save initial state
@@ -60,7 +85,7 @@ export default function ColoringApp() {
       setCanvasHistory([initialState])
       setHistoryIndex(0)
     }
-  }, [])
+  }, [imagePath])
 
   // Drawing functions
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -72,36 +97,77 @@ export default function ColoringApp() {
     const x = (e.clientX - rect.left) / zoom
     const y = (e.clientY - rect.top) / zoom
 
-    canvasContext.beginPath()
-    canvasContext.moveTo(x, y)
+    lastPos.current = { x, y }
 
     if (activeTool === "fill") {
       floodFill(Math.floor(x), Math.floor(y), activeColor)
+    } else if (activeTool === "smart-eraser") {
+      floodFill(Math.floor(x), Math.floor(y), "#ffffff") // Use background color
+    } else {
+      // For brush tools, draw a circle at the starting point
+      drawCircle(x, y)
     }
   }
 
+  const drawCircle = (x: number, y: number) => {
+    if (!canvasContext) return
+
+    const brushSize = brushSizes[activeTool]
+    if (activeTool === "eraser" || activeTool === "smart-eraser") {
+    // On efface sans appliquer de couleur blanche
+        canvasContext.globalCompositeOperation = "destination-out";
+      } else {
+        // Mode dessin classique
+        canvasContext.globalCompositeOperation = "source-over";
+        canvasContext.fillStyle = activeColor;
+
+      }
+         canvasContext.beginPath()
+        canvasContext.arc(x, y, brushSize / 2, 0, Math.PI * 2)
+        canvasContext.fill()
+
+  }
+
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !canvasContext || !canvasRef.current) return
-    if (activeTool === "fill") return
+    if (!isDrawing || !canvasContext || !canvasRef.current || !lastPos.current) return
+    if (activeTool === "fill" || activeTool === "smart-eraser") return
 
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
     const x = (e.clientX - rect.left) / zoom
     const y = (e.clientY - rect.top) / zoom
 
-    canvasContext.lineTo(x, y)
-    canvasContext.strokeStyle = activeTool === "eraser" ? "#888888" : activeColor
-    canvasContext.lineWidth = brushSize
-    canvasContext.lineCap = "round"
-    canvasContext.lineJoin = "round"
-    canvasContext.stroke()
+    // Calculate distance between last position and current position
+    const dx = x - lastPos.current.x
+    const dy = y - lastPos.current.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+
+    const brushSize = brushSizes[activeTool]
+    const radius = brushSize / 2
+
+    // Draw circles along the path for smooth drawing
+    if (distance >= radius / 2) {
+      // Calculate how many circles we need to draw
+      const steps = Math.floor(distance / (radius / 2))
+
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps
+        const ix = lastPos.current.x + dx * t
+        const iy = lastPos.current.y + dy * t
+        drawCircle(ix, iy)
+      }
+
+      lastPos.current = { x, y }
+    } else {
+      drawCircle(x, y)
+    }
   }
 
   const endDrawing = () => {
     if (!isDrawing || !canvasContext || !canvasRef.current) return
 
     setIsDrawing(false)
-    canvasContext.closePath()
+    lastPos.current = null
 
     // Save state for undo
     const canvas = canvasRef.current
@@ -246,24 +312,26 @@ export default function ColoringApp() {
       <div
         className="relative flex w-full h-full"
         style={{
-
+          background: "url(/wood-background.jpg)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
         {/* Left Toolbar */}
         <div className="flex flex-col items-center gap-4 p-4 w-20">
+          {onBack && (
+            <ToolButton onClick={onBack} icon={<ArrowLeft className="w-6 h-6 text-white" />} color="bg-blue-700" />
+          )}
           <ToolButton onClick={() => {}} icon={<Maximize className="w-6 h-6 text-white" />} color="bg-blue-500" />
           <ToolButton onClick={() => {}} icon={<Printer className="w-6 h-6 text-white" />} color="bg-blue-500" />
           <ToolButton onClick={resetCanvas} icon={<Trash2 className="w-6 h-6 text-white" />} color="bg-blue-500" />
           <ToolButton onClick={downloadImage} icon={<Download className="w-6 h-6 text-white" />} color="bg-green-500" />
           <div className="mt-auto">
-            <button
-              onClick={() => {console.log("Back to main menu")}}
-              className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-md flex items-center justify-center hover:opacity-90 transition"
-            >
-              <ArrowLeft className="w-8 h-8 text-white" />
-            </button>
+            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-md flex items-center justify-center">
+              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-green-500 rounded-full"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -311,22 +379,52 @@ export default function ColoringApp() {
 
           {/* Tool Buttons */}
           <div className="mt-4 flex flex-col gap-2">
+            {/* Small Brush */}
             <ToolButton
-              onClick={() => setActiveTool("brush")}
+              onClick={() => setActiveTool("brush-small")}
               icon={
-                <div className="w-6 h-6 rounded-full border-2 border-white" style={{ background: activeColor }}></div>
+                <div className="w-6 h-6 flex items-center justify-center">
+                  <div className="w-3 h-3 rounded-full border-2 border-white" style={{ background: activeColor }}></div>
+                </div>
               }
-              color={activeTool === "brush" ? "bg-blue-500" : "bg-blue-400"}
+              color={activeTool === "brush-small" ? "bg-orange-500" : "bg-blue-400"}
             />
+
+            {/* Medium Brush */}
+            <ToolButton
+              onClick={() => setActiveTool("brush-medium")}
+              icon={
+                <div className="w-6 h-6 flex items-center justify-center">
+                  <div className="w-5 h-5 rounded-full border-2 border-white" style={{ background: activeColor }}></div>
+                </div>
+              }
+              color={activeTool === "brush-medium" ? "bg-orange-500" : "bg-blue-400"}
+            />
+
+            {/* Fill Tool */}
             <ToolButton
               onClick={() => setActiveTool("fill")}
               icon={<PaintBucket className="w-6 h-6 text-white" />}
-              color={activeTool === "fill" ? "bg-green-500" : "bg-green-400"}
+              color={activeTool === "fill" ? "bg-orange-500" : "bg-green-400"}
             />
+
+            {/* Smart Eraser */}
+            <ToolButton
+              onClick={() => setActiveTool("smart-eraser")}
+              icon={
+                <div className="relative w-6 h-6 flex items-center justify-center">
+                  <PaintBucket className="w-5 h-5 text-white" />
+                  <div className="absolute bottom-0 right-0 w-2 h-2 bg-gray-400 rounded-full"></div>
+                </div>
+              }
+              color={activeTool === "smart-eraser" ? "bg-orange-500" : "bg-green-400"}
+            />
+
+            {/* Regular Eraser */}
             <ToolButton
               onClick={() => setActiveTool("eraser")}
-              icon={<div className="w-6 h-6 bg-white rounded-sm"></div>}
-              color={activeTool === "eraser" ? "bg-green-500" : "bg-green-400"}
+              icon={<Eraser className="w-6 h-6 text-white" />}
+              color={activeTool === "eraser" ? "bg-orange-500" : "bg-green-400"}
             />
           </div>
 
