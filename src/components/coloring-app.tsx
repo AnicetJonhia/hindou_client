@@ -26,6 +26,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     "brush-small" | "brush-medium" | "fill" | "smart-eraser" | "eraser"
   >("brush-medium")
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const backgroundCanvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [canvasContext, setCanvasContext] = useState<CanvasRenderingContext2D | null>(null)
   const [canvasHistory, setCanvasHistory] = useState<ImageData[]>([])
@@ -33,6 +34,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
   const [zoom, setZoom] = useState(1)
   const imageRef = useRef<HTMLImageElement | null>(null)
   const lastPos = useRef<{ x: number; y: number } | null>(null)
+
 
   // Brush sizes
   const brushSizes = {
@@ -54,6 +56,19 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     "#ffffff", // white
   ]
 
+
+  useEffect(() => {
+    const canvas = backgroundCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = imagePath; // L'image à colorier
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    }, [imagePath]);
+
   // Initialize canvas (fond transparent)
   useEffect(() => {
     const canvas = canvasRef.current
@@ -66,7 +81,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     canvas.width = 800
     canvas.height = 600
 
-    // On ne remplit pas le canvas : le fond restera transparent
+
 
     // Chargement de l'image de coloriage
     const img = new Image()
@@ -81,6 +96,8 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
       setHistoryIndex(0)
     }
   }, [imagePath])
+
+
 
   // Démarrage du dessin / effacement
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -113,6 +130,7 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
     if (activeTool === "eraser") {
       // Gomme classique : mode "destination-out" pour rendre le trait transparent
       canvasContext.globalCompositeOperation = "destination-out"
+      canvasContext.fill()
     } else {
       // Mode dessin classique
       canvasContext.globalCompositeOperation = "source-over"
@@ -322,12 +340,8 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
   return (
     <div className="flex flex-col items-center w-full h-screen">
       <div
-        className="relative flex w-full h-full"
-        style={{
-          background: "url(/wood-background.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        className="relative flex w-full h-full "
+
       >
         {/* Left Toolbar */}
         <div className="flex flex-col items-center gap-4 p-4 w-20">
@@ -356,24 +370,41 @@ export default function ColoringApp({ imagePath = "/c1.png", onBack }: ColoringA
               height: "600px",
               maxWidth: "100%",
               maxHeight: "100%",
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
             }}
           >
+            {/* Canvas de fond */}
+            <canvas
+              ref={backgroundCanvasRef}
+              width={800}
+              height={600}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                zIndex: 0,
+              }}
+            />
+            {/* Canvas de dessin (superposé) */}
             <canvas
               ref={canvasRef}
               onMouseDown={startDrawing}
               onMouseMove={draw}
               onMouseUp={endDrawing}
               onMouseLeave={endDrawing}
+              width={800}
+              height={600}
               style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: "top left",
-                width: "100%",
-                height: "100%",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                zIndex: 1,
               }}
-              className="absolute top-0 left-0"
             />
           </div>
-        </div>
+      </div>
+
 
         {/* Right Toolbar */}
         <div className="flex flex-col items-center gap-4 p-4 w-24">
